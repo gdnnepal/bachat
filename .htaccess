@@ -1,0 +1,22 @@
+# VCMS — Root .htaccess (for addon domain on cPanel)
+Options -Indexes
+DirectoryIndex index.html index.php
+
+RewriteEngine On
+RewriteBase /
+
+# Block direct access to backend source
+RewriteRule ^backend/app/      - [F,L]
+RewriteRule ^backend/lang/     - [F,L]
+RewriteRule ^backend/database/ - [F,L]
+RewriteRule ^backend/\.env     - [F,L]
+
+# Forward /api/v1/* → backend PHP
+RewriteRule ^api/v1/(.*)$ backend/public/index.php [QSA,L]
+
+# Serve real files/dirs directly (assets, favicon.ico, etc.)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Everything else → React SPA
+RewriteRule ^ index.html [L]

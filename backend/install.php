@@ -1,156 +1,164 @@
 <?php
 /**
- * One-click installer for cPanel deployment.
- * Prompts for MySQL credentials, writes backend/.env, and initializes the database.
+ * VCMS — CLI installer
+ * Called by install.sh — runs the SQL migration and seeds initial data.
+ *
+ * Usage:
+ *   php backend/install.php \
+ *     --db-host=localhost --db-port=3306 \
+ *     --db-name=vcms --db-user=root --db-pass=secret \
+ *     --coop-name="My Cooperative" \
+ *     --admin-user=admin --admin-pass=admin123 \
+ *     --site-url=https://bachat.gdn.com.np
  */
 
-$baseDir = dirname(__DIR__);
-$backendDir = $baseDir . '/backend';
-$envPath = $backendDir . '/.env';
-$schemaPath = $backendDir . '/database/migrations/001_initial_schema.sql';
+declare(strict_types=1);
 
-function prompt(string $label, string $default = '', bool $required = true): string {
-    $value = trim((string) fgets(STDIN));
-    if ($value === '' && $default !== '') {
-        return $default;
-    }
-    if ($required && $value === '') {
-        fwrite(STDERR, "{$label} is required.\n");
-        exit(1);
-    }
-    return $value;
+// ── Parse CLI arguments ──────────────────────────────────────────────────────
+$opts = getopt('', [
+    'db-host:', 'db-port:', 'db-name:', 'db-user:', 'db-pass:',
+    'coop-name:', 'admin-user:', 'admin-pass:', 'site-url:',
+]);
+
+$dbHost   = $opts['db-host']    ?? getenv('DB_HOST') ?: 'localhost';
+$dbPort   = $opts['db-port']    ?? getenv('DB_PORT') ?: '3306';
+$dbName   = $opts['db-name']    ?? getenv('DB_NAME') ?: '';
+$dbUser   = $opts['db-user']    ?? getenv('DB_USER') ?: '';
+$dbPass   = $opts['db-pass']    ?? getenv('DB_PASS') ?: '';
+$coopName = $opts['coop-name']  ?? 'My Cooperative';
+$adminUser = $opts['admin-user'] ?? 'admin';
+$adminPass = $opts['admin-pass'] ?? 'admin123';
+$siteUrl  = $opts['site-url']   ?? '';
+
+if (empty($dbName) || empty($dbUser)) {
+    fwrite(STDERR, "ERROR: --db-name and --db-user are required.\n");
+    exit(1);
 }
 
-function writeEnv(string $path, array $vars): void {
-    $lines = [];
-    foreach ($vars as $key => $value) {
-        $lines[] = $key . '=' . str_replace(["\r", "\n"], ['', ''], $value);
-    }
-    file_put_contents($path, implode(PHP_EOL, $lines) . PHP_EOL);
-}
+// ── Connect ──────────────────────────────────────────────────────────────────
+try {
+    $pdo = new PDO(
+        "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4",
+        $dbUser,
+        $dbPass,
+        [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]
+    );
 
-function createDatabase(PDO $pdo, string $dbName): void {
+    // Create DB if it doesn't exist
     $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     $pdo->exec("USE `{$dbName}`");
+    echo "[VCMS] Connected to MySQL and selected database '{$dbName}'.\n";
+} catch (PDOException $e) {
+    fwrite(STDERR, "ERROR: Cannot connect to MySQL: " . $e->getMessage() . "\n");
+    exit(1);
 }
 
-function splitSqlStatements(string $sql): array {
-    $lines = preg_split('/\r\n|\r|\n/', $sql) ?: [];
-    $statements = [];
-    $current = '';
-    $delimiter = ';';
-
-    foreach ($lines as $line) {
-        $trimmed = trim($line);
-
-        if ($trimmed === '') {
-            continue;
-        }
-
-        if (preg_match('/^DELIMITER\s+(.+)$/i', $trimmed, $matches)) {
-            $delimiter = trim($matches[1]);
-            continue;
-        }
-
-        if (preg_match('/^--/', $trimmed)) {
-            continue;
-        }
-
-        $current .= $line . PHP_EOL;
-
-        if (str_ends_with(rtrim($line), $delimiter)) {
-            $statement = trim($current);
-            $statement = rtrim($statement, PHP_EOL);
-            $statement = rtrim($statement, "\n\r");
-            if ($delimiter !== ';') {
-                $statement = rtrim($statement, $delimiter);
-            }
-            $statement = trim($statement);
-            if ($statement !== '') {
-                $statements[] = $statement;
-            }
-            $current = '';
-        }
-    }
-
-    $tail = trim($current);
-    if ($tail !== '') {
-        $statements[] = $tail;
-    }
-
-    return array_values(array_filter($statements, static fn (string $statement): bool => trim($statement) !== ''));
+// ── Run migration SQL ────────────────────────────────────────────────────────
+$migrationFile = __DIR__ . '/database/migrations/001_initial_schema.sql';
+if (!file_exists($migrationFile)) {
+    fwrite(STDERR, "ERROR: Migration file not found: {$migrationFile}\n");
+    exit(1);
 }
 
-function importSql(PDO $pdo, string $sqlFile): void {
-    $sql = file_get_contents($sqlFile);
-    if ($sql === false) {
-        throw new RuntimeException("Unable to read schema file: {$sqlFile}");
-    }
+echo "[VCMS] Running database migration...\n";
 
-    foreach (splitSqlStatements($sql) as $statement) {
-        if (trim($statement) === '') {
-            continue;
-        }
+// Split on statement delimiter and run each statement
+$sql = file_get_contents($migrationFile);
+
+// Handle DELIMITER $$ blocks used for triggers
+$sql = preg_replace_callback(
+    '/DELIMITER\s*\$\$(.*?)DELIMITER\s*;/s',
+    function ($m) {
+        // Remove $$ delimiter markers; individual statements separated by $$
+        return str_replace('$$', ';', $m[1]);
+    },
+    $sql
+);
+
+// Split on semicolons, skip empty statements
+$statements = array_filter(
+    array_map('trim', explode(';', $sql)),
+    fn($s) => $s !== '' && !preg_match('/^\s*--/m', $s) || strlen(trim($s)) > 5
+);
+
+foreach ($statements as $statement) {
+    $statement = trim($statement);
+    if ($statement === '') continue;
+    try {
         $pdo->exec($statement);
+    } catch (PDOException $e) {
+        // Ignore "table already exists" — idempotent
+        if ($e->getCode() !== '42S01') {
+            echo "[VCMS] Warning: " . $e->getMessage() . "\n";
+        }
+    }
+}
+echo "[VCMS] Migration complete.\n";
+
+// ── Update cooperative name ──────────────────────────────────────────────────
+if ($coopName !== 'My Cooperative') {
+    $stmt = $pdo->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = 'cooperative_name'");
+    $stmt->execute([$coopName]);
+    echo "[VCMS] Cooperative name set to: {$coopName}\n";
+}
+
+// ── Create/update Super Admin ────────────────────────────────────────────────
+$hash = password_hash($adminPass, PASSWORD_BCRYPT, ['cost' => 12]);
+
+// Check if admin already exists
+$check = $pdo->prepare("SELECT id FROM admins WHERE username = ?");
+$check->execute([$adminUser]);
+
+if ($check->fetch()) {
+    $stmt = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE username = ?");
+    $stmt->execute([$hash, $adminUser]);
+    echo "[VCMS] Updated Super Admin password for: {$adminUser}\n";
+} else {
+    $stmt = $pdo->prepare(
+        "INSERT INTO admins (name, username, password_hash, role, status) VALUES (?, ?, ?, 'Super_Admin', 1)"
+    );
+    $stmt->execute(['System Admin', $adminUser, $hash]);
+    echo "[VCMS] Created Super Admin: {$adminUser}\n";
+}
+
+// ── Write .env if site URL provided ─────────────────────────────────────────
+if ($siteUrl) {
+    $envFile = __DIR__ . '/.env';
+    if (!file_exists($envFile)) {
+        $envContent = <<<ENV
+APP_ENV=production
+APP_NAME=VCMS
+BASE_URL={$siteUrl}
+ALLOWED_ORIGINS={$siteUrl}
+DB_HOST={$dbHost}
+DB_PORT={$dbPort}
+DB_NAME={$dbName}
+DB_USER={$dbUser}
+DB_PASS={$dbPass}
+ENV;
+        file_put_contents($envFile, $envContent);
+        echo "[VCMS] Written backend/.env\n";
     }
 }
 
-echo "=== VCMS cPanel Installer ===\n";
-echo "This script will create backend/.env and initialize the database.\n";
-
-echo "Press Enter to accept defaults where shown.\n";
-
-echo "\nMySQL host [localhost]: ";
-$host = prompt('MySQL host', 'localhost');
-echo "MySQL port [3306]: ";
-$port = prompt('MySQL port', '3306');
-echo "MySQL username [root]: ";
-$user = prompt('MySQL username', 'root');
-echo "MySQL password: ";
-$pass = prompt('MySQL password', '', false);
-echo "Database name [vcms]: ";
-$dbName = prompt('Database name', 'vcms');
-echo "Application URL [https://bachat.gdn.com.np/backend/public]: ";
-$baseUrl = prompt('Application URL', 'https://bachat.gdn.com.np/backend/public');
-echo "Allowed origin [https://bachat.gdn.com.np]: ";
-$allowedOrigin = prompt('Allowed origin', 'https://bachat.gdn.com.np');
-
-echo "\nTesting MySQL connection...\n";
-$dsn = sprintf('mysql:host=%s;port=%s;charset=utf8mb4', $host, $port);
-try {
-    $pdo = new PDO($dsn, $user, $pass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
-} catch (Throwable $e) {
-    fwrite(STDERR, "MySQL connection failed: " . $e->getMessage() . "\n");
-    exit(1);
+// ── Check if cycle/period seed needed ────────────────────────────────────────
+$cycleCheck = $pdo->query("SELECT COUNT(*) FROM cycles")->fetchColumn();
+if ((int)$cycleCheck === 0) {
+    // Seed initial cycle and accounting period (BS 2081 Baishakh as default start)
+    $pdo->exec(
+        "INSERT INTO cycles (cycle_number, name, cycle_status, started_at_bs_year, started_at_bs_month)
+         VALUES (1, 'Cycle 1', 'Active', 2081, 1)"
+    );
+    $cycleId = $pdo->lastInsertId();
+    $pdo->exec(
+        "INSERT INTO accounting_periods (cycle_id, bs_year, bs_month, period_status)
+         VALUES ({$cycleId}, 2081, 1, 'OPEN')"
+    );
+    echo "[VCMS] Seeded initial Cycle 1 (BS 2081 Baishakh) as OPEN.\n";
 }
 
-createDatabase($pdo, $dbName);
-$pdo->exec("USE `{$dbName}`");
-try {
-    importSql($pdo, $schemaPath);
-} catch (Throwable $e) {
-    fwrite(STDERR, "Database initialization failed: " . $e->getMessage() . "\n");
-    exit(1);
-}
-
-$envVars = [
-    'APP_ENV' => 'production',
-    'APP_NAME' => 'VCMS',
-    'BASE_URL' => $baseUrl,
-    'ALLOWED_ORIGINS' => $allowedOrigin,
-    'DB_HOST' => $host,
-    'DB_PORT' => $port,
-    'DB_NAME' => $dbName,
-    'DB_USER' => $user,
-    'DB_PASS' => $pass,
-];
-
-writeEnv($envPath, $envVars);
-
-echo "\nInstallation completed successfully.\n";
-echo "Config written to: {$envPath}\n";
-echo "Database initialized: {$dbName}\n";
-echo "Admin login: admin / admin123\n";
+echo "[VCMS] Installation complete!\n";
+echo "[VCMS] Login: {$adminUser} / {$adminPass}\n";
