@@ -20,29 +20,29 @@ const Login = lazy(() => import('./pages/Login.jsx'));
 const ChangePassword = lazy(() => import('./pages/ChangePassword.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 
-const MemberList = lazy(() => import('./pages/members/MemberList.jsx'));
-const MemberForm = lazy(() => import('./pages/members/MemberForm.jsx'));
-const MemberStatement = lazy(() => import('./pages/members/MemberStatement.jsx'));
+const MemberList = lazy(() => import('./pages/Members/MemberList.jsx'));
+const MemberForm = lazy(() => import('./pages/Members/MemberForm.jsx'));
+const MemberStatement = lazy(() => import('./pages/Members/MemberStatement.jsx'));
 
-const BulkSavings = lazy(() => import('./pages/savings/BulkSavings.jsx'));
+const BulkSavings = lazy(() => import('./pages/Savings/BulkSavings.jsx'));
 
-const LoanList = lazy(() => import('./pages/loans/LoanList.jsx'));
-const LoanForm = lazy(() => import('./pages/loans/LoanForm.jsx'));
-const LoanDetail = lazy(() => import('./pages/loans/LoanDetail.jsx'));
-const RepaymentForm = lazy(() => import('./pages/loans/RepaymentForm.jsx'));
+const LoanList = lazy(() => import('./pages/Loans/LoanList.jsx'));
+const LoanForm = lazy(() => import('./pages/Loans/LoanForm.jsx'));
+const LoanDetail = lazy(() => import('./pages/Loans/LoanDetail.jsx'));
+const RepaymentForm = lazy(() => import('./pages/Loans/RepaymentForm.jsx'));
 
-const CashBank = lazy(() => import('./pages/cashbank/CashBank.jsx'));
+const CashBank = lazy(() => import('./pages/CashBank/CashBank.jsx'));
 
-const Distribution = lazy(() => import('./pages/distribution/Distribution.jsx'));
-const ConfirmDistribution = lazy(() => import('./pages/distribution/ConfirmDistribution.jsx'));
+const Distribution = lazy(() => import('./pages/Distribution/Distribution.jsx'));
+const ConfirmDistribution = lazy(() => import('./pages/Distribution/ConfirmDistribution.jsx'));
 
-const Reports = lazy(() => import('./pages/reports/Reports.jsx'));
-const ReportViewer = lazy(() => import('./pages/reports/ReportViewer.jsx'));
-const AuditLog = lazy(() => import('./pages/reports/AuditLog.jsx'));
+const Reports = lazy(() => import('./pages/Reports/Reports.jsx'));
+const ReportViewer = lazy(() => import('./pages/Reports/ReportViewer.jsx'));
+const AuditLog = lazy(() => import('./pages/Reports/AuditLog.jsx'));
 
-const Settings = lazy(() => import('./pages/settings/Settings.jsx'));
-const MonthClose = lazy(() => import('./pages/settings/MonthClose.jsx'));
-const Backup = lazy(() => import('./pages/settings/Backup.jsx'));
+const Settings = lazy(() => import('./pages/Settings/Settings.jsx'));
+const MonthClose = lazy(() => import('./pages/Settings/MonthClose.jsx'));
+const Backup = lazy(() => import('./pages/Settings/Backup.jsx'));
 
 const AdminList = lazy(() => import('./pages/admins/AdminList.jsx'));
 const AdminForm = lazy(() => import('./pages/admins/AdminForm.jsx'));
