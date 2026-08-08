@@ -60,16 +60,45 @@ spl_autoload_register(function (string $class): void {
 // ─── Load application config ─────────────────────────────────────────────────
 require APP_PATH . '/config/App.php';
 
+// ─── CORS — must run before session_start() so headers are sent on every response ──
+$allowedOrigins = [];
+if (defined('ALLOWED_ORIGINS') && ALLOWED_ORIGINS !== '') {
+    // Trim whitespace from each origin in case of formatting issues in .env
+    $allowedOrigins = array_map('trim', explode(',', ALLOWED_ORIGINS));
+}
+// Always allow localhost in development
+if (APP_ENV !== 'production') {
+    $allowedOrigins[] = 'http://localhost:5173';
+    $allowedOrigins[] = 'http://localhost:3000';
+}
+
+$origin = trim($_SERVER['HTTP_ORIGIN'] ?? '');
+$originAllowed = !empty($origin) && in_array(rtrim($origin, '/'), array_map(fn($o) => rtrim($o, '/'), $allowedOrigins), true);
+
+if ($originAllowed) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With, Authorization');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    header('Access-Control-Max-Age: 86400');
+    header('Vary: Origin');
+}
+
+// Handle preflight OPTIONS — respond immediately before any PHP processing
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 // ─── Session configuration ───────────────────────────────────────────────────
 ini_set('session.cookie_httponly', '1');
 ini_set('session.use_strict_mode', '1');
-// For cross-origin deployments (Vercel frontend + cPanel API), SameSite must
-// be None so the browser sends the session cookie across origins.
-// SameSite=None requires Secure (HTTPS), so we enforce that in production.
-$isCrossOrigin = !empty($_SERVER['HTTP_ORIGIN'])
-    && $_SERVER['HTTP_ORIGIN'] !== (defined('BASE_URL') ? BASE_URL : '');
 
-if ($isCrossOrigin || APP_ENV === 'production') {
+// Cross-origin (Vercel → cPanel): SameSite=None + Secure required
+if ($originAllowed && $origin !== (defined('BASE_URL') ? rtrim(BASE_URL, '/') : '')) {
+    ini_set('session.cookie_samesite', 'None');
+    ini_set('session.cookie_secure', '1');
+} elseif (APP_ENV === 'production') {
     ini_set('session.cookie_samesite', 'None');
     ini_set('session.cookie_secure', '1');
 } else {
@@ -78,23 +107,6 @@ if ($isCrossOrigin || APP_ENV === 'production') {
 
 session_name('VCMS_SESSION');
 session_start();
-
-// ─── CORS headers (adjust origins for production) ────────────────────────────
-$allowedOrigins = defined('ALLOWED_ORIGINS') ? explode(',', ALLOWED_ORIGINS) : ['http://localhost:5173'];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-if (in_array($origin, $allowedOrigins, true)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-}
-
-// Handle pre-flight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
 
 // ─── Dispatch to router ──────────────────────────────────────────────────────
 require APP_PATH . '/routes/api.php';

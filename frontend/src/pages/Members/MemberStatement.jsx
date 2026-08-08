@@ -101,7 +101,7 @@ export default function MemberStatement() {
           <div>
             <dt className="text-xs uppercase tracking-wide text-slate-500">{t('common.balance')}</dt>
             <dd className="mt-1 font-semibold tabular-nums text-brand-700">
-              {formatNPR(data?.meta?.final_balance ?? 0, locale)}
+              {formatNPR(data?.meta?.savings_balance ?? 0, locale)}
             </dd>
           </div>
         </dl>

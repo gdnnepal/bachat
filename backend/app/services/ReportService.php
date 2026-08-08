@@ -189,9 +189,16 @@ class ReportService
         });
 
         $running = 0.0;
+        $savingsRunning = 0.0; // Only savings + interest (no loans/repayments)
         foreach ($entries as &$entry) {
             $running += $entry['amount'];
             $entry['running_balance'] = round($running, 2);
+
+            // Savings balance tracks only Saving and Interest rows
+            if (in_array($entry['kind'], ['Saving', 'Interest'], true)) {
+                $savingsRunning += $entry['amount'];
+            }
+            $entry['savings_balance'] = round($savingsRunning, 2);
         }
         unset($entry);
 
@@ -202,19 +209,22 @@ class ReportService
             'data'    => [
                 'title'   => 'Member Statement',
                 'columns' => [
-                    ['key' => 'date_bs',         'label' => 'Date (BS)',       'type' => 'text'],
-                    ['key' => 'date_ad',         'label' => 'Date (AD)',       'type' => 'date'],
-                    ['key' => 'kind',            'label' => 'Type',           'type' => 'text'],
-                    ['key' => 'description',     'label' => 'Description',    'type' => 'text'],
-                    ['key' => 'amount',          'label' => 'Amount',         'type' => 'money'],
-                    ['key' => 'running_balance', 'label' => 'Running Balance', 'type' => 'money'],
+                    ['key' => 'date_bs',         'label' => 'Date (BS)',        'type' => 'text'],
+                    ['key' => 'date_ad',         'label' => 'Date (AD)',        'type' => 'date'],
+                    ['key' => 'kind',            'label' => 'Type',            'type' => 'text'],
+                    ['key' => 'description',     'label' => 'Description',     'type' => 'text'],
+                    ['key' => 'amount',          'label' => 'Amount',          'type' => 'money'],
+                    ['key' => 'savings_balance', 'label' => 'Savings Balance', 'type' => 'money'],
                 ],
                 'rows'   => $entries,
                 'totals' => $totals,
                 'meta'   => [
-                    'member'        => $member,
-                    'range'         => $range,
-                    'final_balance' => round($running, 2),
+                    'member'          => $member,
+                    'range'           => $range,
+                    // savings_balance = savings + interest only (shown in member card header)
+                    'savings_balance' => round($savingsRunning, 2),
+                    // final_balance = full ledger including loans/repayments
+                    'final_balance'   => round($running, 2),
                 ],
             ],
         ];

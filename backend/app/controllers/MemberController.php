@@ -20,6 +20,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Helpers\Response;
+use App\Services\MemberImportService;
 use App\Services\MemberService;
 use App\Services\ReportService;
 
@@ -138,6 +139,68 @@ class MemberController
         }
 
         Response::success($result['data'], 'Member statement generated.');
+    }
+
+    // =========================================================================
+    // GET /members/import/template  — download blank CSV template
+    // =========================================================================
+
+    public static function importTemplate(array $params, array $body): never
+    {
+        $csv = MemberImportService::csvTemplate();
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="members_import_template.csv"');
+        header('Content-Length: ' . strlen($csv));
+        echo $csv;
+        exit;
+    }
+
+    // =========================================================================
+    // POST /members/import  — upload CSV and import members
+    // =========================================================================
+
+    public static function import(array $params, array $body): never
+    {
+        // Accept uploaded file OR raw CSV body
+        $csvContent = null;
+
+        if (isset($_FILES['file'])) {
+            $file = $_FILES['file'];
+
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                Response::error('VALIDATION_ERROR', 'File upload failed.', [], 422);
+            }
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ['csv', 'txt'], true)) {
+                Response::error('VALIDATION_ERROR', 'Only CSV files are accepted.', [], 422);
+            }
+
+            $csvContent = file_get_contents($file['tmp_name']);
+        } elseif (!empty($body['csv'])) {
+            $csvContent = (string) $body['csv'];
+        }
+
+        if ($csvContent === null || trim($csvContent) === '') {
+            Response::error('VALIDATION_ERROR', 'No CSV data provided. Upload a file or send csv in body.', [], 422);
+        }
+
+        $result = MemberImportService::importCsv($csvContent, self::currentAdminId());
+
+        if (!$result['success'] && $result['imported'] === 0) {
+            Response::error('IMPORT_ERROR', $result['message'], [], 422);
+        }
+
+        Response::success(
+            [
+                'imported' => $result['imported'],
+                'skipped'  => $result['skipped'],
+                'errors'   => $result['errors'],
+            ],
+            $result['message'],
+            $result['imported'] > 0 ? 200 : 422
+        );
     }
 
     // =========================================================================

@@ -46,12 +46,14 @@ $routes = [
     ['PATCH', '/admins/{id}/status',  'AdminController@setStatus',    ['Super_Admin']],
 
     // ── Members ───────────────────────────────────────────────────────────────
-    ['GET',    '/members',                    'MemberController@index',     ['auth']],
-    ['POST',   '/members',                    'MemberController@store',     ['auth']],
-    ['GET',    '/members/{id}',               'MemberController@show',      ['auth']],
-    ['PUT',    '/members/{id}',               'MemberController@update',    ['auth']],
-    ['DELETE', '/members/{id}',               'MemberController@destroy',   ['auth']],
-    ['GET',    '/members/{id}/statement',     'MemberController@statement', ['auth']],
+    ['GET',    '/members',                    'MemberController@index',          ['auth']],
+    ['GET',    '/members/import/template',    'MemberController@importTemplate', ['auth']],
+    ['POST',   '/members/import',             'MemberController@import',         ['auth']],
+    ['POST',   '/members',                    'MemberController@store',          ['auth']],
+    ['GET',    '/members/{id}',               'MemberController@show',           ['auth']],
+    ['PUT',    '/members/{id}',               'MemberController@update',         ['auth']],
+    ['DELETE', '/members/{id}',               'MemberController@destroy',        ['auth']],
+    ['GET',    '/members/{id}/statement',     'MemberController@statement',      ['auth']],
 
     // ── Accounting Periods ────────────────────────────────────────────────────
     // NOTE: '/accounting-periods/current' must be listed BEFORE '/accounting-periods/{id}/reopen'
