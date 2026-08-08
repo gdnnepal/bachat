@@ -11,7 +11,7 @@ import memberService from '../../services/memberService.js';
 import { useApi, useFetch } from '../../hooks/useApi.jsx';
 import { useI18n } from '../../hooks/useI18n.jsx';
 import { useToast } from '../../hooks/useToast.jsx';
-import { normaliseColumns } from '../reports/reportColumns.js';
+import { normaliseColumns } from '../Reports/reportColumns.js';
 import { formatNPR } from '../../utils/currency.js';
 
 /**
