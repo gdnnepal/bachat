@@ -28,6 +28,9 @@ use App\Middleware\RbacMiddleware;
 
 $routes = [
 
+    // ── Health ─────────────────────────────────────────────────────────────
+    ['GET', '/health', 'HealthController@check', []],
+
     // ── Auth ─────────────────────────────────────────────────────────────────
     ['POST', '/auth/login',           'AuthController@login',          []],
     ['POST', '/auth/logout',          'AuthController@logout',         ['auth']],
