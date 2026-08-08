@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"en.json\"\\),true\\); $need=[\"common.search\",\"common.no_records\",\"common.loading\",\"common.confirm_title\",\"button.export_excel\",\"button.export_pdf\",\"button.print\",\"button.close\",\"button.cancel\",\"button.confirm\",\"table.total\",\"table.showing\",\"table.previous\",\"table.next\",\"table.page_of\"]; foreach\\($need as $k\\){ echo \\(isset\\($j[$k]\\)?\"OK  \":\"MISS\"\\) . \" $k\" . \\(isset\\($j[$k]\\)?\" = \".$j[$k]:\"\"\\) . PHP_EOL; }')",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"en.json\"\\),true\\); foreach\\($j as $k=>$v\\){ if\\(str_starts_with\\($k,\"table.\"\\)||str_starts_with\\($k,\"common.\"\\)\\) echo \"$k = $v\\\\n\"; }')",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"ne.json\"\\),true\\); foreach\\($j as $k=>$v\\){ if\\(str_starts_with\\($k,\"table.\"\\)\\) echo \"$k = $v\\\\n\"; }')",
+      "Bash(php -r ' *)",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"en.json\"\\),true\\); foreach\\($j as $k=>$v\\){ if\\(str_starts_with\\($k,\"period.\"\\)||str_starts_with\\($k,\"nav.\"\\)||str_starts_with\\($k,\"auth.\"\\)||str_starts_with\\($k,\"app.\"\\)\\) echo \"$k = $v\\\\n\"; }')",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"en.json\"\\),true\\); foreach\\($j as $k=>$v\\){ if\\(stripos\\($k,\"year\"\\)!==false||stripos\\($k,\"month\"\\)!==false||stripos\\($k,\"bs\"\\)!==false\\) echo \"$k = $v\\\\n\"; }')",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"en.json\"\\),true\\); foreach\\($j as $k=>$v\\){ if\\(str_starts_with\\($k,\"admin.\"\\)||str_starts_with\\($k,\"settings.\"\\)||str_starts_with\\($k,\"button.\"\\)\\) echo \"$k = $v\\\\n\"; }')",
+      "Bash(python -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(npx vite *)",
+      "Bash(npx vitest *)",
+      "Read(//c/laragon/bin/mysql//**)",
+      "Read(//c/laragon/bin/php//**)",
+      "Bash(curl -s -i \"http://127.0.0.1:8000/api/v1/auth/csrf-token\")",
+      "Bash(/c/laragon/bin/php/php-8.3.26-Win32-vs16-x64/php.exe *)",
+      "Bash(curl -s -b vcms-cookies.txt \"http://127.0.0.1:8000/api/v1/accounting-periods/current\")",
+      "Bash(curl -s -b vcms-cookies.txt \"http://127.0.0.1:8000/api/v1/savings/bulk-screen\")",
+      "Bash(curl -s -b vcms-cookies.txt \"http://127.0.0.1:8000/api/v1/distribution/current\")",
+      "Bash(curl -s -b vcms-cookies.txt \"http://127.0.0.1:8000/api/v1/dashboard\")"
+    ]
+  }
+}

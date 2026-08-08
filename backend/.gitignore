@@ -1,0 +1,13 @@
+# Environment files — contain database credentials, never commit.
+.env
+.env.*
+!.env.example
+
+# Composer
+/vendor/
+
+# Generated artefacts
+/public/uploads/backups/
+/public/uploads/logs/
+*.sql.gz
+*.log

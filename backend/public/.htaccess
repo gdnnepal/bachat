@@ -1,0 +1,98 @@
+# VCMS — Village Cooperative Management System
+# public/.htaccess — front-controller routing and upload directory lockdown
+
+# ─── Re-grant access denied by backend/.htaccess ─────────────────────────────
+# The parent directory denies everything so a document root above backend/
+# cannot serve .env or application source. public/ is the one directory that
+# must be reachable, so it grants itself back. The uploads/ subdirectories and
+# the FilesMatch rules below then re-deny what must stay private.
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
+
+# ─── Block direct access to generated artefacts ──────────────────────────────
+# Backups, distribution PDFs and audit failure logs live under uploads/ but must
+# only ever be served through an authenticated controller action, never by
+# guessing a URL. This rule is placed FIRST so it wins before rewriting.
+#
+# NOTE: <Directory> and <DirectoryMatch> are server-config-only directives —
+# Apache returns 500 "not allowed here" when they appear in .htaccess. The
+# directory lockdown therefore lives in uploads/backups/.htaccess and
+# uploads/logs/.htaccess, alongside the RedirectMatch and FilesMatch rules here.
+RedirectMatch 404 ^/.*/uploads/(backups|logs)/
+
+# Belt-and-braces: refuse to serve these extensions from anywhere under public/
+<FilesMatch "\.(sql|gz|sql\.gz|log|env|ini|sh|bak)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ─── Front controller ────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # No RewriteBase: without it, a relative substitution is resolved against
+    # the directory containing this .htaccess, which is correct both at the
+    # domain root and in a subdirectory such as /Bachat/backend/public.
+    # Hardcoding "RewriteBase /" instead sends the rewrite to the document root,
+    # where index.php does not exist — every API URL 404s.
+
+    # CORS pre-flight must reach index.php so PHP can emit the headers.
+    RewriteCond %{REQUEST_METHOD} =OPTIONS
+    RewriteRule ^ index.php [L]
+
+    # Never rewrite requests that map to a real file or directory
+    # (index.php itself, and any future static assets).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else goes to the single entry point.
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ─── Authorization header pass-through ───────────────────────────────────────
+# Some CGI/FastCGI setups strip it before PHP sees it.
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# ─── Hardening ───────────────────────────────────────────────────────────────
+Options -Indexes -MultiViews
+ServerSignature Off
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-XSS-Protection "0"
+</IfModule>
+
+# Deny access to dotfiles (.env, .git, editor swap files)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ─── PHP runtime tuning for restore uploads ──────────────────────────────────
+<IfModule mod_php.c>
+    php_value upload_max_filesize 128M
+    php_value post_max_size 128M
+    php_value max_execution_time 300
+</IfModule>
