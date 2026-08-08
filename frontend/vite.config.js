@@ -14,9 +14,11 @@ export default defineConfig(({ mode }) => {
 
   const API_TARGET = env.VITE_API_TARGET || 'http://127.0.0.1:8000';
   const API_BASE_PATH = env.VITE_API_BASE_PATH || '/api/v1';
+  const BASE_PATH = env.VITE_BASE_PATH || '/frontend/';
 
   return {
     plugins: [react()],
+    base: BASE_PATH,
 
     resolve: {
       alias: {
