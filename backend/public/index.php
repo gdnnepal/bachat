@@ -63,10 +63,17 @@ require APP_PATH . '/config/App.php';
 // ─── Session configuration ───────────────────────────────────────────────────
 ini_set('session.cookie_httponly', '1');
 ini_set('session.use_strict_mode', '1');
-ini_set('session.cookie_samesite', 'Lax');
+// For cross-origin deployments (Vercel frontend + cPanel API), SameSite must
+// be None so the browser sends the session cookie across origins.
+// SameSite=None requires Secure (HTTPS), so we enforce that in production.
+$isCrossOrigin = !empty($_SERVER['HTTP_ORIGIN'])
+    && $_SERVER['HTTP_ORIGIN'] !== (defined('BASE_URL') ? BASE_URL : '');
 
-if (APP_ENV === 'production') {
+if ($isCrossOrigin || APP_ENV === 'production') {
+    ini_set('session.cookie_samesite', 'None');
     ini_set('session.cookie_secure', '1');
+} else {
+    ini_set('session.cookie_samesite', 'Lax');
 }
 
 session_name('VCMS_SESSION');
