@@ -1,0 +1,26 @@
+# VCMS — deny web access to the entire backend tree.
+#
+# Only backend/public/ is meant to be reachable over HTTP; it re-grants access
+# for itself in public/.htaccess. This file is the backstop for every other
+# path, because a document root above this directory (Laragon and XAMPP both
+# serve the whole www/ folder) would otherwise expose:
+#
+#   .env                        — database credentials in plaintext
+#   app/**/*.php                — application source
+#   database/migrations/*.sql   — schema and the seeded admin password hash
+#   composer.json / vendor/     — dependency inventory
+#
+# Deploying with the vhost DocumentRoot pointed at backend/public is still the
+# correct production setup; this only ensures a misconfigured root is not a
+# credential leak.
+
+<IfModule mod_authz_core.c>
+    # Apache 2.4+
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2 fallback
+    Order allow,deny
+    Deny from all
+</IfModule>

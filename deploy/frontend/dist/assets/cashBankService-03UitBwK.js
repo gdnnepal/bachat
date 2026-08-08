@@ -1,0 +1,1 @@
+import{p as r,i as s}from"./index-Dlg57_KK.js";const c={balances(){return s("/cash-bank/balances")},transactions(a="cash",n={}){return s("/cash-bank/transactions",{view:a,...n})},transfer(a){return r("/cash-bank/transfer",a)}};export{c};

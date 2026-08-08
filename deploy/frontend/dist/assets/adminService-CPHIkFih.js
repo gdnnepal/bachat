@@ -1,0 +1,1 @@
+import{q as r,t as e,p as n,i as s}from"./index-Dlg57_KK.js";const u={list(){return s("/admins")},find(t){return s(`/admins/${t}`)},create(t){return n("/admins",t)},update(t,a){return e(`/admins/${t}`,a)},setStatus(t,a){return r(`/admins/${t}/status`,{status:a})}};export{u as a};
